@@ -49,7 +49,6 @@ Shader "Hidden/Shader/GrayScale"
         UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
 
         // Note that if HDUtils.DrawFullScreen is not used to render the post process, you don't need to call ClampAndScaleUVForBilinearPostProcessTexture.
-
         float3 sourceColor = SAMPLE_TEXTURE2D_X(_MainTex, s_linear_clamp_sampler, ClampAndScaleUVForBilinearPostProcessTexture(input.texcoord.xy)).xyz;
 
         // Apply greyscale effect
