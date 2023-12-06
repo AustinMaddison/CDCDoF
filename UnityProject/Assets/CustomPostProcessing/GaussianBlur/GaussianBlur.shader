@@ -4,7 +4,7 @@ Shader "PostProcessing/GaussianBlur"
     {
 		_MainTex("Texture", 2D) = "white" {}
 		_Spread("Standard Deviation (Spread)", Float) = 0
-		_GridSize("Grid Size", Integer) = 1
+		_KernelSize("Kernel Size", Integer) = 1
     }
     SubShader
     {
@@ -23,7 +23,7 @@ Shader "PostProcessing/GaussianBlur"
 
 		CBUFFER_START(UnityPerMaterial)
 			float4 _MainTex_TexelSize;
-			uint _GridSize;
+			uint _KernelSize;
 			float _Spread;
 		CBUFFER_END
 
@@ -66,20 +66,20 @@ Shader "PostProcessing/GaussianBlur"
             float4 frag_horizontal (v2f i) : SV_Target
 			{
 				float3 col = float3(0.0f, 0.0f, 0.0f);
-				float gridSum = 0.0f;
+				float kernelSum = 0.0f;
 
-				int upper = ((_GridSize - 1) / 2);
+				int upper = ((_KernelSize - 1) / 2);
 				int lower = -upper;
 
 				for (int x = lower; x <= upper; ++x)
 				{
 					float gauss = gaussian(x);
-					gridSum += gauss;
+					kernelSum += gauss;
 					float2 uv = i.uv + float2(_MainTex_TexelSize.x * x, 0.0f);
 					col += gauss * tex2D(_MainTex, uv).xyz;
 				}
 
-				col /= gridSum;
+				col /= kernelSum;
 
 				return float4(col, 1.0f);
 			}
@@ -97,20 +97,20 @@ Shader "PostProcessing/GaussianBlur"
             float4 frag_vertical (v2f i) : SV_Target
 			{
 				float3 col = float3(0.0f, 0.0f, 0.0f);
-				float gridSum = 0.0f;
+				float kernelSum = 0.0f;
 
-				int upper = ((_GridSize - 1) / 2);
+				int upper = ((_KernelSize - 1) / 2);
 				int lower = -upper;
 
 				for (int y = lower; y <= upper; ++y)
 				{
 					float gauss = gaussian(y);
-					gridSum += gauss;
+					kernelSum += gauss;
 					float2 uv = i.uv + float2(0.0f, _MainTex_TexelSize.y * y);
 					col += gauss * tex2D(_MainTex, uv).xyz;
 				}
 
-				col /= gridSum;
+				col /= kernelSum;
 				return float4(col, 1.0f);
 			}
             ENDHLSL
