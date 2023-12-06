@@ -19,6 +19,7 @@ public class CscLensBlurRenderPass : ScriptableRenderPass
     public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
     {
         RenderTextureDescriptor descriptor = renderingData.cameraData.cameraTargetDescriptor;
+        descriptor.depthBufferBits = 0;
 
         var renderer = renderingData.cameraData.renderer;
         source = renderer.cameraColorTargetHandle;

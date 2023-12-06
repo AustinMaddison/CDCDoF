@@ -53,12 +53,9 @@ Shader "PostProcessing/CscLensBlur"
 			return o;
 		}
 
-		ENDHLSL
-
-		HLSLINCLUDE
 		// The precomputed CSC Real and Imaginary Kernel's from the paper referenced in the projects proposal: https://dl.acm.org/doi/10.1145/3084363.3085022.
-		static const uint KERNEL_RADIUS = 8;
-		static const uint KERNEL_COUNT = 17;
+		#define KERNEL_RADIUS 8
+		#define KERNEL_COUNT 17
 
 		// 2-Component (For Far Field Blur, More Precise)
 		static const float4 Kernel0BracketsRealXY_ImZW_2 = float4(-0.038708,0.943062,-0.025574,0.660892);
@@ -127,34 +124,60 @@ Shader "PostProcessing/CscLensBlur"
 				float4(/*XY: Non Bracketed*/-0.001442,0.026656,/*Bracketed WZ:*/0.000000,0.085609)
 		};
 		ENDHLSL
-
         Pass
         {
 			Name "Horizontal"
            
-		   HLSLPROGRAM
+		   	HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag_horizontal
 
             float4 frag_horizontal (v2f i) : SV_Target
 			{
-				float3 col = float3(0.0f, 0.0f, 0.0f);
+				float4 col = float3(0.0f, 0.0f, 0.0f, 0.0f);
 				float kernelSum = 0.0f;
+	
 
-				int upper = ((_KernelSize - 1) / 2);
-				int lower = -upper;
 
-				for (int x = lower; x <= upper; ++x)
+				for (int x = 0; x <= 8 * 2; ++x)
 				{
-					float gauss = gaussian(x);
-					kernelSum += gauss;
+					int index = x - 8;
 					float2 uv = i.uv + float2(_MainTex_TexelSize.x * x, 0.0f);
-					col += gauss * tex2D(_MainTex, uv).xyz;
+					
+					float2 c0 = Kernel0_RealX_ImY_RealZ_ImW_2[index + 8].xy;
+					float2 c1 = Kernel1_RealX_ImY_RealZ_ImW_2[index + 8].xy;
+
+					float coc = _Spread;
+
+					kernelSum += c0;
+					float3 texel = tex2D(_MainTex, uv).rgb;
+
+					// Apply kernel weights
+					col.r += float4(texel.r * c0, texel.r * c1);
+					col.g += float4(texel.g * c0, texel.g * c1);
+					col.b += float4(texel.b * c0, texel.b * c1);
 				}
 
 				col /= kernelSum;
-
 				return float4(col, 1.0f);
+
+			// 	float3 col = float3(0.0f, 0.0f, 0.0f);
+			// 	float kernelSum = 0.0f;
+
+			// 	int upper = ((_KernelSize - 1) / 2);
+			// 	int lower = -upper;
+
+			// 	for (int x = lower; x <= upper; ++x)
+			// 	{
+			// 		float gauss = gaussian(x);
+			// 		kernelSum += gauss;
+			// 		float2 uv = i.uv + float2(_MainTex_TexelSize.x * x, 0.0f);
+			// 		col += gauss * tex2D(_MainTex, uv).xyz;
+			// 	}
+
+			// 	col /= kernelSum;
+
+			// 	return float4(col, 1.0f);
 			}
             ENDHLSL
         }
@@ -170,20 +193,20 @@ Shader "PostProcessing/CscLensBlur"
             float4 frag_vertical (v2f i) : SV_Target
 			{
 				float3 col = float3(0.0f, 0.0f, 0.0f);
-				float kernelSum = 0.0f;
+				// float kernelSum = 0.0f;
 
-				int upper = ((_KernelSize - 1) / 2);
-				int lower = -upper;
+				// int upper = ((_KernelSize - 1) / 2);
+				// int lower = -upper;
 
-				for (int y = lower; y <= upper; ++y)
-				{
-					float gauss = gaussian(y);
-					kernelSum += gauss;
-					float2 uv = i.uv + float2(0.0f, _MainTex_TexelSize.y * y);
-					col += gauss * tex2D(_MainTex, uv).xyz;
-				}
+				// for (int y = lower; y <= upper; ++y)
+				// {
+				// 	float gauss = gaussian(y);
+				// 	kernelSum += gauss;
+				// 	float2 uv = i.uv + float2(0.0f, _MainTex_TexelSize.y * y);
+				// 	col += gauss * tex2D(_MainTex, uv).xyz;
+				// }
 
-				col /= kernelSum;
+				col = tex2D(_MainTex, i.uv).xyz;
 				return float4(col, 1.0f);
 			}
             ENDHLSL
