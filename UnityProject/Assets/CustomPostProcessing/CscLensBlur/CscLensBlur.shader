@@ -5,6 +5,10 @@ Shader "PostProcessing/CscLensBlur"
 		_MainTex("Texture", 2D) = "white" {}
 		_Spread("Standard Deviation (Spread)", Float) = 0
 		_KernelSize("Kernel Size", Integer) = 1
+		_BufferValR ("Buffer R", 2D) = "black" { }
+    	_BufferValG ("Buffer G", 2D) = "black" { }
+    	_BufferValB ("Buffer B", 2D) = "black" { }
+    	_BufferWeight ("Buffer Weight", Float) =  0
     }
     SubShader
     {
@@ -20,6 +24,10 @@ Shader "PostProcessing/CscLensBlur"
 		#define E 2.71828f
 
 		sampler2D _MainTex;
+		sampler2D _BufferValR;
+		sampler2D _BufferValG;
+		sampler2D _BufferValB;
+		sampler2D _BufferWeight;
 
 		CBUFFER_START(UnityPerMaterial)
 			float4 _MainTex_TexelSize;
@@ -27,11 +35,6 @@ Shader "PostProcessing/CscLensBlur"
 			float _Spread;
 		CBUFFER_END
 
-		float gaussian(int x)
-		{
-			float sigmaSqu = _Spread * _Spread;
-			return (1 / sqrt(TWO_PI * sigmaSqu)) * pow(E, -(x * x) / (2 * sigmaSqu));
-		}
 
 		struct appdata
 		{
@@ -52,6 +55,14 @@ Shader "PostProcessing/CscLensBlur"
 			o.uv = v.uv;
 			return o;
 		}
+
+		struct PSOut
+		{
+			float4 TexR			: SV_Target0;
+			float4 TexG			: SV_Target1;
+			float4 TexB			: SV_Target2;
+			float  TexW      	: SV_Target3;
+		};
 
 		// The precomputed CSC Real and Imaginary Kernel's from the paper referenced in the projects proposal: https://dl.acm.org/doi/10.1145/3084363.3085022.
 		#define KERNEL_RADIUS 8
@@ -132,52 +143,40 @@ Shader "PostProcessing/CscLensBlur"
             #pragma vertex vert
             #pragma fragment frag_horizontal
 
-            float4 frag_horizontal (v2f i) : SV_Target
+            PSOut frag_horizontal (v2f i) : SV_Target
 			{
-				float4 col = float3(0.0f, 0.0f, 0.0f, 0.0f);
+				PSOut output;
+
+				// Vertical
+				float4 valR = float4(0.0f, 0.0f, 0.0f, 0.0f);
+				float4 valG = float4(0.0f, 0.0f, 0.0f, 0.0f);
+				float4 valB = float4(0.0f, 0.0f, 0.0f, 0.0f);
+				
 				float kernelSum = 0.0f;
+				float coc = _Spread;
 	
-
-
-				for (int x = 0; x <= 8 * 2; ++x)
+				for (int x = 0; x <= KERNEL_RADIUS * 2; ++x)
 				{
-					int index = x - 8;
-					float2 uv = i.uv + float2(_MainTex_TexelSize.x * x, 0.0f);
+					int index = x - KERNEL_RADIUS;
+					float2 coords = i.uv + float2(_MainTex_TexelSize.x * x, 0.0f) * coc;
 					
 					float2 c0 = Kernel0_RealX_ImY_RealZ_ImW_2[index + 8].xy;
 					float2 c1 = Kernel1_RealX_ImY_RealZ_ImW_2[index + 8].xy;
 
-					float coc = _Spread;
-
-					kernelSum += c0;
-					float3 texel = tex2D(_MainTex, uv).rgb;
+					kernelSum += coc;
+					float3 texel = tex2D(_MainTex, coords).rgb;
 
 					// Apply kernel weights
-					col.r += float4(texel.r * c0, texel.r * c1);
-					col.g += float4(texel.g * c0, texel.g * c1);
-					col.b += float4(texel.b * c0, texel.b * c1);
+					valR += float4(texel.r * c0, texel.r * c1);
+					valG += float4(texel.g * c0, texel.g * c1);
+					valB += float4(texel.b * c0, texel.b * c1);
 				}
 
-				col /= kernelSum;
-				return float4(col, 1.0f);
-
-			// 	float3 col = float3(0.0f, 0.0f, 0.0f);
-			// 	float kernelSum = 0.0f;
-
-			// 	int upper = ((_KernelSize - 1) / 2);
-			// 	int lower = -upper;
-
-			// 	for (int x = lower; x <= upper; ++x)
-			// 	{
-			// 		float gauss = gaussian(x);
-			// 		kernelSum += gauss;
-			// 		float2 uv = i.uv + float2(_MainTex_TexelSize.x * x, 0.0f);
-			// 		col += gauss * tex2D(_MainTex, uv).xyz;
-			// 	}
-
-			// 	col /= kernelSum;
-
-			// 	return float4(col, 1.0f);
+				output.TexR = valR;
+				output.TexG = valG;
+				output.TexB = valB;
+				output.TexW = kernelSum / (KERNEL_COUNT);
+				return output;
 			}
             ENDHLSL
         }
@@ -185,31 +184,67 @@ Shader "PostProcessing/CscLensBlur"
 		Pass
         {
 			Name "Vertical"
-
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag_vertical
 
+			float2 multComplex(float2 p, float2 q)
+			{
+				return float2(p.x*q.x-p.y*q.y, p.x*q.y+p.y*q.x);
+			}
+
             float4 frag_vertical (v2f i) : SV_Target
 			{
-				float3 col = float3(0.0f, 0.0f, 0.0f);
-				// float kernelSum = 0.0f;
+				float4 filteredColorFar = float4(0, 0, 0, 0);
 
-				// int upper = ((_KernelSize - 1) / 2);
-				// int lower = -upper;
+				float4 valR = float4(0,0,0,0);
+				float4 valG = float4(0,0,0,0);
+				float4 valB = float4(0,0,0,0);
 
-				// for (int y = lower; y <= upper; ++y)
-				// {
-				// 	float gauss = gaussian(y);
-				// 	kernelSum += gauss;
-				// 	float2 uv = i.uv + float2(0.0f, _MainTex_TexelSize.y * y);
-				// 	col += gauss * tex2D(_MainTex, uv).xyz;
-				// }
+				float weightValue = 0;
+				float coc = _Spread;
 
-				col = tex2D(_MainTex, i.uv).xyz;
-				return float4(col, 1.0f);
+				for (int y = 0; y <= KERNEL_RADIUS * 2; ++y)
+				{
+					int index = y - KERNEL_RADIUS;
+					float2 coords = i.uv + float2(_MainTex_TexelSize.y * y, 0.0f) * coc;
+					
+					float weightValueSample = tex2D(_BufferWeight, coords); // Linear Sampling!
+					weightValue += weightValueSample;
+					
+					float4 imageTexelR = tex2D(_BufferValR, coords);  
+					float4 imageTexelG = tex2D(_BufferValG, coords);  
+					float4 imageTexelB = tex2D(_BufferValB, coords);  
+
+					float2 c0 = Kernel0_RealX_ImY_RealZ_ImW_2[index + KERNEL_RADIUS].xy;
+					float2 c1 = Kernel1_RealX_ImY_RealZ_ImW_2[index + KERNEL_RADIUS].xy;
+
+					valR.xy += multComplex(imageTexelR.xy, c0);
+					valR.zw += multComplex(imageTexelR.zw, c1);
+
+					valG.xy += multComplex(imageTexelG.xy, c0);
+					valG.zw += multComplex(imageTexelG.zw, c1);
+
+					valB.xy += multComplex(imageTexelB.xy, c0); 
+					valB.zw += multComplex(imageTexelB.zw, c1); 
+
+					weightValue += coc;
+					float3 texel = tex2D(_MainTex, coords).rgb;
+
+					// Apply kernel weights
+					valR += float4(texel.r * c0, texel.r * c1);
+					valG += float4(texel.g * c0, texel.g * c1);
+					valB += float4(texel.b * c0, texel.b * c1);
+				}
+
+				weightValue /= (KERNEL_COUNT);
+				float redChannel   = dot(valR.xy,Kernel0Weights_RealX_ImY_2)+dot(valR.zw,Kernel1Weights_RealX_ImY_2);
+				float greenChannel = dot(valG.xy,Kernel0Weights_RealX_ImY_2)+dot(valG.zw,Kernel1Weights_RealX_ImY_2);
+				float blueChannel  = dot(valB.xy,Kernel0Weights_RealX_ImY_2)+dot(valB.zw,Kernel1Weights_RealX_ImY_2);
+				return float4((float3(redChannel, greenChannel, blueChannel) / weightValue), 0);
 			}
             ENDHLSL
         }
+		
     }
 }
