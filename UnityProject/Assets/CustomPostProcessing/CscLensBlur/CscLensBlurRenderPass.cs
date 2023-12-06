@@ -19,6 +19,7 @@ public class CscLensBlurRenderPass : ScriptableRenderPass
     readonly int valBTexID = Shader.PropertyToID("_BufferValB");
     readonly int weightTexID = Shader.PropertyToID("_BufferWeight");
 
+
     public CscLensBlurRenderPass()
     {
         renderPassEvent = RenderPassEvent.BeforeRenderingPostProcessing;
@@ -82,11 +83,12 @@ public class CscLensBlurRenderPass : ScriptableRenderPass
         cmd.Blit(source, valBTex, material, 0);
         cmd.Blit(source, weightTex, material, 0);
 
+
         // Apply blur separately for each channel
-        cmd.Blit(valRTex, source, material, 1);
+        //cmd.Blit(valRTex, source, material, 1);
         cmd.Blit(valGTex, source, material, 1);
-        cmd.Blit(valBTex, source, material, 1);
-        cmd.Blit(weightTex, source, material, 1);
+        //cmd.Blit(valBTex, source, material, 1);
+        //cmd.Blit(weightTex, source, material, 1);
 
         context.ExecuteCommandBuffer(cmd);
         cmd.Clear();

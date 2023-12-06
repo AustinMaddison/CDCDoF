@@ -1,0 +1,13 @@
+function out = convcomp(img, kernel_re, kernel_im, kernel_w)
+
+    % Construct kernel from real and imagenary precomputed weights
+    kernel = kernel_re + 1j * kernel_im;
+    
+    % Horizontal Blur 
+    tmp_out = convrgb(img, kernel, 'same');
+    % Vertical Blur
+    tmp_out = convrgb(tmp_out, transpose(kernel), 'same');
+    
+    % Combine the with weights 𝐶𝑜𝑙𝑜𝑟(𝑥)=𝐴〖∗𝐹〗_𝑟𝑒𝑎𝑙 (𝑥)+𝐵〖∗𝐹〗_𝑖𝑚𝑎𝑔𝑖𝑛𝑎𝑟𝑦 (𝑥)
+
+    out = kernel_w(1) * real(tmp_out) + kernel_w(2) * imag(tmp_out);
