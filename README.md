@@ -1,19 +1,18 @@
-
-#Circular Separable Convolutional Lens Blur (CocLb) Project Overview
-##Proposal Summary
+# Circular Separable Convolutional Lens Blur (CocLb) Project Overview 
+## Proposal Summary 
 The project proposed the implementation of Circular Separable Convolutional Depth of Field (CocDof), a post-processing technique originating from Electronic Arts. This technique addresses the challenge of rendering bokeh depth of field efficiently, particularly when dealing with a large Circle of Confusion. Traditional methods for handling a very large Circle of Confusion are computationally expensive. The plan was to implement this algorithm using GPU shaders in Unity's real-time rendering engine, leveraging HLSL and C#. The intention was to integrate it as a post-processing effect within a practical program, capitalizing on the parallel processing capabilities of GPU architecture.
 
-##Summary
+## Project Summary 
 As the project unfolded, the realization dawned that implementing a full-depth-of-field system is intricate, involving considerations of various physical camera settings like aperture, focal length, and sensor size to define an appropriate mask for the plane of focus. Consequently, the project scope was refined to focus on the core blurring algorithm, opting for Lens Blur over full Depth of Field. Initial steps involved becoming acquainted with Unity's render pipeline, including the creation of render targets essential for achieving the desired effect.
 
-##Unity Implementation
-###Gaussian Blur
+## Unity Implementation  
+### Gaussian Blur
 The initial focus was on Gaussian Blur, chosen as the foundational element for CocLb. Both techniques require the construction of a kernel and the execution of convolutions in two separate passes. The approach involved specifying in C# where in Unity's rendering pipeline to intervene, describing the necessary passes, buffers, and uniforms for the shader, and then crafting the shader itself. This resulted in a real-time Gaussian blur with variable blur size and kernel precision. Notably, the Gaussian weights used in the kernel for convolution were dynamically calculated in the shader rather than being precomputed. Upon completion of the passes, the buffer was read into the main render target, which encompasses Unity's Viewport and Cameras.
 
-###Circular Separable Convolutional Lens Blur
+### Circular Separable Convolutional Lens Blur
 The original plan was to repurpose the Gaussian Blur as the foundation for CocLb. However, challenges arose as CocLb required additional buffers, one for each real and imaginary component to reconstruct the Circular kernel. This necessitated a single pass to generate four more passes. Unfortunately, Unity's HLSL proved to be less flexible, requiring workarounds and custom render target handlers. Attempts involving a swap chain were largely unsuccessful due to limitations in the Universal Render Pipeline. In retrospect, utilizing Unity's default renderer would have been more direct and less cumbersome. Faced with issues where the results only blurred in one axis and the second pass wouldn't bind with desired buffers, a decision was made to reimplement the algorithm in a different environment for personal satisfaction.
 
-###MATLAB Implementation
+### MATLAB Implementation
 In response to challenges encountered with Unity's URP rendering API, the decision was made to implement CocLb in MATLAB. MATLAB's efficient GPU shader dispatching facilitated a straightforward implementation. The process involved defining an input texture, a kernel, running a convolution, and combining intermediate outputs using precomputed weights as detailed in the research paper. The shift to MATLAB provided a more direct route to realizing the Circular Separable Convolutional Lens Blur algorithm, circumventing the complexities encountered in the Unity implementation.
 
 ## Conclusion
