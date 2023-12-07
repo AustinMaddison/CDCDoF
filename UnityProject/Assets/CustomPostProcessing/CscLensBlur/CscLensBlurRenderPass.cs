@@ -1,29 +1,39 @@
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.UIElements;
 
 public class CscLensBlurRenderPass : ScriptableRenderPass
 {
     private Material material;
     private CscLensBlurBlurSettings blurSettings;
 
-    private RenderTargetIdentifier source;
-    private RenderTargetIdentifier blurTex;
-    private RenderTargetIdentifier valRTex;
-    private RenderTargetIdentifier valGTex;
-    private RenderTargetIdentifier valBTex;
-    private RenderTargetIdentifier weightTex;
+    public RenderTargetIdentifier source;
+    public RenderTargetIdentifier horizontalPassTexR;
+    public RenderTargetIdentifier horizontalPassTexG;
+    public RenderTargetIdentifier horizontalPassTexB;
+    public RenderTargetIdentifier horizontalPassTexW;
+    
+    readonly int horizontalPassTexRID = Shader.PropertyToID("_TexR");
+    readonly int horizontalPassTexGID = Shader.PropertyToID("_TexG");
+    readonly int horizontalPassTexBID = Shader.PropertyToID("_TexB");
+    readonly int horizontalPassTexWID = Shader.PropertyToID("_TexW");
 
-    readonly int valRTexID = Shader.PropertyToID("_BufferValR");
-    readonly int valGTexID = Shader.PropertyToID("_BufferValG");
-    readonly int valBTexID = Shader.PropertyToID("_BufferValB");
-    readonly int weightTexID = Shader.PropertyToID("_BufferWeight");
+    public RenderTexture renderTexR;
+    public RenderTexture renderTexG;
+    public RenderTexture renderTexB;
+    public RenderTexture renderTexW;
 
 
+    public int width;
+    public int height;
+    
     public CscLensBlurRenderPass()
     {
         renderPassEvent = RenderPassEvent.BeforeRenderingPostProcessing;
     }
+
 
     public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
     {
@@ -33,15 +43,24 @@ public class CscLensBlurRenderPass : ScriptableRenderPass
         var renderer = renderingData.cameraData.renderer;
         source = renderer.cameraColorTargetHandle;
 
-        cmd.GetTemporaryRT(valRTexID, descriptor, FilterMode.Bilinear);
-        cmd.GetTemporaryRT(valGTexID, descriptor, FilterMode.Bilinear);
-        cmd.GetTemporaryRT(valBTexID, descriptor, FilterMode.Bilinear);
-        cmd.GetTemporaryRT(weightTexID, descriptor, FilterMode.Bilinear);
 
-        valRTex = new RenderTargetIdentifier(valRTexID);
-        valGTex = new RenderTargetIdentifier(valGTexID);
-        valBTex = new RenderTargetIdentifier(valBTexID);
-        weightTex = new RenderTargetIdentifier(weightTexID);
+        width = renderingData.cameraData.cameraTargetDescriptor.width;
+        height = renderingData.cameraData.cameraTargetDescriptor.height;
+
+        cmd.GetTemporaryRT(horizontalPassTexRID, descriptor, FilterMode.Bilinear);
+        cmd.GetTemporaryRT(horizontalPassTexGID, descriptor, FilterMode.Bilinear);
+        cmd.GetTemporaryRT(horizontalPassTexBID, descriptor, FilterMode.Bilinear);
+        cmd.GetTemporaryRT(horizontalPassTexWID, descriptor, FilterMode.Bilinear);
+
+        horizontalPassTexR = new RenderTargetIdentifier(horizontalPassTexRID);
+        horizontalPassTexG = new RenderTargetIdentifier(horizontalPassTexGID);
+        horizontalPassTexB = new RenderTargetIdentifier(horizontalPassTexBID);
+        horizontalPassTexW = new RenderTargetIdentifier(horizontalPassTexWID);
+
+        renderTexR = new RenderTexture(width, height, 0);
+        renderTexG = new RenderTexture(width, height, 0);
+        renderTexB = new RenderTexture(width, height, 0);
+        renderTexW = new RenderTexture(width, height, 0);
     }
 
     public bool Setup(ScriptableRenderer renderer)
@@ -67,28 +86,25 @@ public class CscLensBlurRenderPass : ScriptableRenderPass
 
         CommandBuffer cmd = CommandBufferPool.Get("Csc Blur Blur Post Process");
 
-        int gridSize = Mathf.CeilToInt(blurSettings.strength.value * 5.0f);
-
-        if(gridSize % 2 == 0)
-        {
-            gridSize++;
-        }
-
-        material.SetInteger("_KernelSize", gridSize);
         material.SetFloat("_Spread", blurSettings.strength.value);
 
-        // Blit source to intermediate buffer
-        cmd.Blit(source, valRTex, material, 0);
-        cmd.Blit(source, valGTex, material, 0);
-        cmd.Blit(source, valBTex, material, 0);
-        cmd.Blit(source, weightTex, material, 0);
+        // Horizontal
+        cmd.Blit(source, horizontalPassTexR, material, 0);
+        cmd.Blit(source, horizontalPassTexG, material, 1);
+        cmd.Blit(source, horizontalPassTexB, material, 2);
+        cmd.Blit(source, horizontalPassTexW, material, 3);
 
+        cmd.Blit(horizontalPassTexR, renderTexR);
+        cmd.Blit(horizontalPassTexG, renderTexG);
+        cmd.Blit(horizontalPassTexB, renderTexB);
+        cmd.Blit(horizontalPassTexW, renderTexW);
 
-        // Apply blur separately for each channel
-        //cmd.Blit(valRTex, source, material, 1);
-        cmd.Blit(valGTex, source, material, 1);
-        //cmd.Blit(valBTex, source, material, 1);
-        //cmd.Blit(weightTex, source, material, 1);
+        material.SetTexture("_TexR", renderTexR);
+        material.SetTexture("_TexG", renderTexG);
+        material.SetTexture("_TexB", renderTexB);
+        material.SetTexture("_TexW", renderTexW);
+
+        cmd.Blit(null, source, material, 4);
 
         context.ExecuteCommandBuffer(cmd);
         cmd.Clear();
@@ -97,10 +113,11 @@ public class CscLensBlurRenderPass : ScriptableRenderPass
 
     public override void FrameCleanup(CommandBuffer cmd)
     {
-        cmd.ReleaseTemporaryRT(valRTexID);
-        cmd.ReleaseTemporaryRT(valGTexID);
-        cmd.ReleaseTemporaryRT(valBTexID);
-        cmd.ReleaseTemporaryRT(weightTexID);
+        cmd.ReleaseTemporaryRT(horizontalPassTexRID);
+        cmd.ReleaseTemporaryRT(horizontalPassTexGID);
+        cmd.ReleaseTemporaryRT(horizontalPassTexBID);
+        cmd.ReleaseTemporaryRT(horizontalPassTexWID);
+
         base.FrameCleanup(cmd);
     }
 }
