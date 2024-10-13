@@ -36,7 +36,7 @@ Material:
     - _QueueControl: 0
     - _Speckle_Opacity: 0
     m_Colors:
-    - _BG_Color: {r: 0, g: 0, b: 0, a: 1}
+    - _BG_Color: {r: 0.09433961, g: 0.09433961, b: 0.09433961, a: 1}
     - _Border_Color: {r: 1, g: 1, b: 1, a: 1}
     - _Grid_Color: {r: 0, g: 0, b: 0, a: 1}
     - _Remap_Roughness: {r: 0, g: 1, b: 0, a: 0}

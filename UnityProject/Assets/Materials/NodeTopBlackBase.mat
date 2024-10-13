@@ -50,7 +50,7 @@ Material:
     - _QueueControl: 0
     - _Speckle_Opacity: 0.63
     m_Colors:
-    - _BG_Color: {r: 0, g: 0, b: 0, a: 1}
+    - _BG_Color: {r: 0.084905684, g: 0.084905684, b: 0.084905684, a: 1}
     - _Grid_Color: {r: 0.20754719, g: 0.20754719, b: 0.20754719, a: 1}
     - _Remap_Roughness: {r: 0, g: 1, b: 0, a: 0}
     - _Specular_Color: {r: 0.16037738, g: 0.16037738, b: 0.16037738, a: 0}

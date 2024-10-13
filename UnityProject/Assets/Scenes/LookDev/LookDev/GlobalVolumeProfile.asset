@@ -34,7 +34,7 @@ MonoBehaviour:
   active: 0
   strength:
     m_OverrideState: 1
-    m_Value: 1
+    m_Value: 0.9
   depthOfField: {fileID: 0}
 --- !u!114 &-4879018689066485218
 MonoBehaviour:
