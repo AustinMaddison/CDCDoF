@@ -1,4 +1,4 @@
-# Circular Separable Convolutional Lens Blur (CocLb)
+# Circular Separable Convolutional Lens Blur (CscLb)
 ![alt text for screen readers](/Images/cover.png)
 ## Results
 The effects results can be found in Slides.pdf
