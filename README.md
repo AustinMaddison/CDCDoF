@@ -36,7 +36,6 @@ The original plan was to repurpose the Gaussian Blur as the foundation for CocLb
 ![image](https://github.com/cs-muic/2023-t1-finalproject-image-lens-blur-effect/assets/23569282/3e3c4dac-84a2-4864-a434-a493606cc6d9)
 ![image](https://github.com/cs-muic/2023-t1-finalproject-image-lens-blur-effect/assets/23569282/04ba806c-e4b5-4622-aa99-670f38c1300d)
 ![image](https://github.com/cs-muic/2023-t1-finalproject-image-lens-blur-effect/assets/23569282/b0967e4f-4ed4-42d7-b88f-171184accf13)
-![image](https://github.com/cs-muic/2023-t1-finalproject-image-lens-blur-effect/assets/23569282/64fa27f6-1190-40b2-87c2-ad533985f9ff)
 
 ### Reference
 https://www.ea.com/frostbite/news/circular-separable-convolution-depth-of-field
